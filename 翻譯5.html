@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>English Scramble: Review Mode</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #F3F6F9;
+            --primary: #5BC0EB;   /* 亮藍 */
+            --primary-dark: #3D9AC4;
+            --accent: #FDE74C;    /* 亮黃 */
+            --text: #272D2D;
+            --white: #FFFFFF;
+            --success: #9BC53D;   /* 蘋果綠 */
+            --error: #E55934;
+            --review-bg: #E8F1F2;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: 'Quicksand', 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#d1dce6 2px, transparent 2px);
+            background-size: 24px 24px;
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 頂部資訊列 */
+        .top-bar {
+            width: 100%; max-width: 550px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .score-pill {
+            background: var(--white); padding: 8px 20px; border-radius: 50px;
+            font-weight: 900; color: var(--primary-dark); font-size: 1.1rem;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1); border: 2px solid #E0F7FA;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        .music-btn {
+            background: var(--white); width: 44px; height: 44px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.4rem; cursor: pointer; border: 2px solid #E0F7FA;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1); transition: transform 0.1s;
+        }
+        .music-btn:active { transform: translateY(2px); box-shadow: none; }
+        .music-active { background: var(--accent); border-color: #E6C229; color: white; }
+
+        /* 時間條 */
+        .timer-track {
+            width: 100%; max-width: 550px; height: 12px;
+            background: #E0E0E0; border-radius: 10px; margin-bottom: 20px;
+            overflow: hidden; border: 2px solid #fff;
+        }
+        .timer-fill {
+            height: 100%; width: 100%; 
+            background: linear-gradient(90deg, #90E0EF, var(--primary));
+            transition: width 1s linear; border-radius: 10px;
+        }
+
+        /* 題目卡片 */
+        .question-card {
+            width: 100%; max-width: 550px;
+            background: var(--white); padding: 25px;
+            border-radius: 24px; margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            border: 3px solid #fff;
+            position: relative;
+        }
+        
+        .q-badge {
+            background: var(--primary); color: white; 
+            padding: 6px 12px; border-radius: 12px; 
+            font-size: 0.9rem; font-weight: 800;
+            display: inline-block; margin-bottom: 12px;
+        }
+
+        .q-text {
+            font-size: 1.2rem; line-height: 1.6; font-weight: 800; color: #444;
+        }
+
+        /* 區域標籤 */
+        .zone-label {
+            width: 100%; max-width: 550px;
+            font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: 800;
+            display: flex; justify-content: space-between; align-items: center;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* 作答與單字區 */
+        .word-container {
+            width: 100%; max-width: 550px;
+            min-height: 100px;
+            background: #F8F9FA;
+            border: 3px dashed #DAE1E7; border-radius: 20px;
+            padding: 10px;
+            display: flex; flex-wrap: wrap; gap: 8px;
+            align-content: flex-start;
+            margin-bottom: 25px;
+            transition: border-color 0.3s;
+        }
+
+        #answer-list {
+            background: #fff; border-color: var(--primary);
+        }
+
+        /* 字塊 (好點選) */
+        .word-chip {
+            background: var(--white); color: #333;
+            border: 2px solid #E0F7FA;
+            border-bottom: 4px solid #B2EBF2;
+            padding: 10px 16px;
+            border-radius: 14px;
+            font-size: 1rem; font-weight: 700;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: transform 0.1s;
+        }
+        .word-chip:active {
+            transform: translateY(3px); border-bottom-width: 1px;
+            background: #F0FAFC;
+        }
+        .sortable-ghost { opacity: 0.5; background: var(--accent); transform: scale(0.95); }
+
+        /* 按鈕群 */
+        .btn-container {
+            width: 100%; max-width: 550px;
+            display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px;
+            padding-bottom: 60px;
+        }
+
+        .btn {
+            border: none; padding: 18px; border-radius: 16px;
+            font-size: 1rem; font-weight: 900; color: white;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.1);
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+
+        .btn-hint { background: var(--accent); color: #B45309; }
+        .btn-solve { background: #B8B8FF; color: #4B4B96; }
+        .btn-submit { background: var(--primary); font-size: 1.2rem; }
+
+        /* 彈窗 (Modal) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 2000; opacity: 0; pointer-events: none; transition: 0.3s;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+
+        .modal-card {
+            background: white; width: 90%; max-width: 450px;
+            padding: 25px; border-radius: 25px;
+            text-align: center;
+            transform: scale(0.9); transition: 0.3s;
+            max-height: 90vh; display: flex; flex-direction: column;
+        }
+        .modal-overlay.show .modal-card { transform: scale(1); }
+
+        /* 結算畫面中的歷史紀錄區 */
+        .review-container {
+            text-align: left;
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            background: #fdfdfd;
+            padding: 10px;
+            flex-grow: 1; /* 讓它佔據剩餘空間 */
+        }
+
+        .review-item {
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-left: 5px solid #ccc;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+        .review-item.excellent { border-left-color: var(--accent); }
+        .review-item.good { border-left-color: var(--primary); }
+        .review-item.nice { border-left-color: var(--success); }
+
+        .r-header { font-size: 0.85rem; color: #888; display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .r-tag { font-weight: bold; }
+        .r-cn { font-size: 0.95rem; font-weight: bold; color: #444; margin-bottom: 5px; }
+        .r-en { font-size: 0.9rem; color: var(--primary-dark); line-height: 1.4; font-family: 'Nunito', sans-serif; }
+
+        .fb-icon { font-size: 4rem; display: block; margin-bottom: 10px; }
+        .fb-title { font-size: 1.8rem; font-weight: 900; margin-bottom: 5px; }
+        .fb-msg { font-size: 1.1rem; color: #666; margin-bottom: 20px; }
+        
+        .fb-btn {
+            background: var(--success); color: white; border: none;
+            padding: 15px; font-size: 1.2rem; font-weight: 900;
+            border-radius: 50px; cursor: pointer; width: 100%;
+            box-shadow: 0 4px 0 #7CB518; margin-top: 10px;
+        }
+        .fb-btn:active { transform: translateY(3px); box-shadow: none; }
+
+        /* 浮動加分 */
+        .float-score {
+            position: fixed; font-weight: 900; font-size: 2.5rem; color: var(--accent);
+            text-shadow: 2px 2px 0 #fff; pointer-events: none; z-index: 3000;
+            animation: floatUp 1s forwards;
+        }
+        @keyframes floatUp { 0% { opacity: 0; transform: translateY(20px); } 50% { opacity: 1; transform: translateY(-20px); } 100% { opacity: 0; transform: translateY(-80px); } }
+
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="score-pill">⭐ <span id="score">0</span></div>
+    <div class="music-btn" id="music-toggle" onclick="toggleMusic()">🎵</div>
+</div>
+
+<div class="timer-track">
+    <div class="timer-fill" id="timer-bar"></div>
+</div>
+
+<div class="question-card">
+    <div class="q-badge" id="q-badge">Question 1</div>
+    <div class="q-text" id="q-cn">Loading...</div>
+</div>
+
+<div class="zone-label">
+    <span>👇 YOUR ANSWER</span>
+    <span style="color:var(--primary); font-size:0.8rem;">Tap to move</span>
+</div>
+<div class="word-container" id="answer-list"></div>
+
+<div class="zone-label">📦 WORD BANK</div>
+<div class="word-container" id="source-list"></div>
+
+<div class="btn-container">
+    <button class="btn btn-hint" onclick="useHint()">HINT</button>
+    <button class="btn btn-solve" onclick="instantSolve()">SOLVE</button>
+    <button class="btn btn-submit" id="check-btn" onclick="checkAnswer()">SUBMIT</button>
+</div>
+
+<div class="modal-overlay" id="fb-modal">
+    <div class="modal-card" style="max-height: auto; min-height: 300px;">
+        <span class="fb-icon" id="fb-icon">🎉</span>
+        <h2 class="fb-title" id="fb-title">Correct!</h2>
+        <p class="fb-msg" id="fb-msg">Keep it up!</p>
+        <button class="fb-btn" id="fb-action-btn">Next ➡</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="final-modal">
+    <div class="modal-card">
+        <h2 style="color:var(--text); margin-bottom:5px;">Mission Complete!</h2>
+        <div style="font-size:1.5rem; font-weight:900; color:var(--primary);">Final Score: <span id="final-score-val">0</span></div>
+        
+        <div class="zone-label" style="margin-top:15px; color:var(--text);">📝 Review History</div>
+        
+        <div class="review-container" id="review-list">
+            </div>
+
+        <button class="fb-btn" onclick="location.reload()">Replay ↺</button>
+    </div>
+</div>
+
+<script>
+    // --- 題目資料庫 ---
+    // Note: blocks 屬性用於強制指定切割方式，確保 slash 詞彙或片語不被拆開
+    const questions = [
+        { 
+            cn: "根據新聞報導，每年全球有超過百萬人在道路事故中喪失性命。", 
+            en: "According to news reports, more than one million people lose their lives in road accidents every year all over the world.",
+            // 修正了 'yeasr' 為 'year'
+            blocks: ["According", "to", "news", "reports,", "more", "than", "one", "million", "people", "lose", "their", "lives", "in", "road", "accidents", "every", "year", "all", "over", "the", "world."]
+        },
+        { 
+            cn: "因此，交通法規必須嚴格執行，以確保所有用路人的安全。", 
+            en: "Therefore, traffic laws/regulations must be strictly enforced to ensure the safety of all road users.",
+            // 特殊處理: laws/regulations
+            blocks: ["Therefore,", "traffic", "laws/regulations", "must", "be", "strictly", "enforced", "to", "ensure", "the", "safety", "of", "all", "road", "users."]
+        },
+        { 
+            cn: "隨著高齡人口持續增加，高齡駕駛所引發的交通事故日益引起關注。", 
+            en: "As the elderly population continues to grow, traffic accidents caused by senior drivers have increasingly caused concern.",
+            // 標準空格切割
+        },
+        { 
+            cn: "有鑑於此，一些人呼籲政府加強高齡駕駛的駕照管理與駕駛能力評估。", 
+            en: "In light of this, some people have called on/appealed to the government to strengthen driver’s license management and driving ability assessments for senior drivers.",
+            // 特殊處理: called on/appealed to (包含空格)
+            blocks: ["In", "light", "of", "this,", "some", "people", "have", "called on/appealed to", "the", "government", "to", "strengthen", "driver’s", "license", "management", "and", "driving", "ability", "assessments", "for", "senior", "drivers."]
+        },
+        { 
+            cn: "與網紅合作可以迅速提高品牌的曝光度，並吸引更廣大的觀眾。", 
+            en: "Working with influencers can quickly increase a brand’s exposure and attract a wider audience.",
+            // 標準空格切割
+        },
+        { 
+            cn: "然而，如果該網紅捲入醜聞，就可能會損害品牌形象。", 
+            en: "However, if the influencer got involved in a scandal, it could hurt/damage/harm the brand’s image.",
+            // 特殊處理: hurt/damage/harm
+            blocks: ["However,", "if", "the", "influencer", "got", "involved", "in", "a", "scandal,", "it", "could", "hurt/damage/harm", "the", "brand’s", "image."]
+        }
+    ];
+
+    // --- 變數狀態 ---
+    let qIndex = 0;
+    let score = 0;
+    let timer = 60;
+    let timerInterval;
+    let currentWords = [];
+    let historyLog = []; // 儲存答題紀錄：{id, timeUsed, grade, cn, en}
+    let isMusicPlaying = false;
+
+    // --- 初始化 ---
+    window.onload = function() {
+        initGame();
+    };
+
+    function initGame() {
+        // 設定 SortableJS (拖曳功能)
+        const sortOptions = {
+            group: 'shared',
+            animation: 200,
+            ghostClass: 'sortable-ghost',
+            delay: 0,
+            swapThreshold: 0.65
+        };
+        // 檢查元素是否存在再綁定
+        const elAns = document.getElementById('answer-list');
+        const elSrc = document.getElementById('source-list');
+        if(elAns && elSrc) {
+            new Sortable(elAns, sortOptions);
+            new Sortable(elSrc, sortOptions);
+        }
+
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        clearInterval(timerInterval);
+        timer = 60;
+        startTimer();
+
+        // 更新介面
+        document.getElementById('q-badge').innerText = `Question ${qIndex + 1}`;
+        document.getElementById('q-cn').innerText = questions[qIndex].cn;
+        
+        const ansList = document.getElementById('answer-list');
+        const srcList = document.getElementById('source-list');
+        ansList.innerHTML = '';
+        srcList.innerHTML = '';
+
+        // 處理單字：如果有設定 blocks 就用 blocks，否則用空白鍵切割
+        let words;
+        if (questions[qIndex].blocks) {
+            words = questions[qIndex].blocks;
+        } else {
+            words = questions[qIndex].en.split(' ');
+        }
+        
+        currentWords = words.map((w, i) => ({ text: w, id: i }));
+        
+        // 打亂
+        const shuffled = [...currentWords].sort(() => Math.random() - 0.5);
+        
+        shuffled.forEach(w => {
+            const div = document.createElement('div');
+            div.className = 'word-chip';
+            div.innerText = w.text;
+            div.dataset.id = w.id;
+            // 點擊即移動
+            div.onclick = function() {
+                playPopSound();
+                const target = this.parentElement.id === 'source-list' ? ansList : srcList;
+                target.appendChild(this);
+            };
+            srcList.appendChild(div);
+        });
+    }
+
+    function startTimer() {
+        const bar = document.getElementById('timer-bar');
+        bar.style.width = '100%';
+        bar.style.background = 'linear-gradient(90deg, #90E0EF, #48CAE4)';
+        
+        timerInterval = setInterval(() => {
+            timer--;
+            const pct = (timer / 60) * 100;
+            bar.style.width = pct + '%';
+            if(pct < 30) bar.style.background = '#EF476F'; // 變紅
+            
+            if(timer <= 0) {
+                clearInterval(timerInterval);
+                showFeedback(false, 60); // Time up
+            }
+        }, 1000);
+    }
+
+    // --- 檢查答案與評分 ---
+    function checkAnswer() {
+        const ansList = document.getElementById('answer-list');
+        const userChips = Array.from(ansList.children);
+        // 將字塊接起來比較
+        const userStr = userChips.map(c => c.innerText).join('');
+        const correctStr = currentWords.map(w => w.text).join('');
+
+        if (userStr === correctStr) {
+            clearInterval(timerInterval);
+            playSuccessSound();
+            
+            const timeUsed = 60 - timer;
+            const timeBonus = Math.max(0, timer * 2);
+            score += (100 + timeBonus);
+            document.getElementById('score').innerText = score;
+            
+            showFloatScore(`+${100+timeBonus}`);
+            showFeedback(true, timeUsed);
+        } else {
+            playErrorSound();
+            score -= 10;
+            document.getElementById('score').innerText = score;
+            showFloatScore("-10");
+            showFeedback(false, 0);
+        }
+    }
+
+    function showFeedback(isCorrect, timeUsed) {
+        const modal = document.getElementById('fb-modal');
+        const icon = document.getElementById('fb-icon');
+        const title = document.getElementById('fb-title');
+        const msg = document.getElementById('fb-msg');
+        const btn = document.getElementById('fb-action-btn');
+
+        if (isCorrect) {
+            let grade = "";
+            let gradeClass = "";
+            let emoji = "";
+
+            // 依據時間給予評語
+            if (timeUsed <= 15) {
+                grade = "Excellent! ⚡";
+                gradeClass = "excellent"; // 對應 CSS .review-item.excellent
+                emoji = "🤩";
+                msg.innerText = "Super fast! Keep it up!";
+            } else if (timeUsed <= 30) {
+                grade = "Good Job! 👍";
+                gradeClass = "good";
+                emoji = "😎";
+                msg.innerText = "Nice pace!";
+            } else {
+                grade = "Nice Going! 🐢";
+                gradeClass = "nice";
+                emoji = "🙂";
+                msg.innerText = "Slow and steady wins!";
+            }
+
+            // 儲存到歷史紀錄
+            historyLog.push({
+                qNum: qIndex + 1,
+                time: timeUsed,
+                grade: grade,
+                class: gradeClass,
+                cn: questions[qIndex].cn,
+                en: questions[qIndex].en
+            });
+
+            icon.innerText = emoji;
+            title.innerText = grade;
+            title.style.color = "var(--text)"; // Reset color
+            
+            btn.innerText = "Next Question ➡";
+            btn.style.background = "var(--success)";
+            btn.onclick = nextQuestion;
+
+        } else {
+            icon.innerText = "🤔";
+            title.innerText = "Try Again";
+            title.style.color = "var(--error)";
+            msg.innerText = "The order isn't right yet.";
+            
+            btn.innerText = "Keep Trying ↺";
+            btn.style.background = "#ccc";
+            btn.onclick = () => modal.classList.remove('show');
+        }
+        modal.classList.add('show');
+    }
+
+    function nextQuestion() {
+        document.getElementById('fb-modal').classList.remove('show');
+        qIndex++;
+        if (qIndex < questions.length) {
+            loadQuestion();
+        } else {
+            showFinalResult();
+        }
+    }
+
+    // --- 最終結算與產生紀錄 ---
+    function showFinalResult() {
+        document.getElementById('final-modal').classList.add('show');
+        document.getElementById('final-score-val').innerText = score;
+        
+        const list = document.getElementById('review-list');
+        list.innerHTML = ''; // 清空舊資料
+
+        // 產生 HTML 列表
+        historyLog.forEach(item => {
+            const div = document.createElement('div');
+            // 加入 class 以顯示對應顏色邊框
+            div.className = `review-item ${item.class}`; 
+            
+            div.innerHTML = `
+                <div class="r-header">
+                    <span>Q${item.qNum}</span>
+                    <span class="r-tag">${item.time}s (${item.grade})</span>
+                </div>
+                <div class="r-cn">${item.cn}</div>
+                <div class="r-en">${item.en}</div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    // --- 輔助功能 ---
+    function useHint() {
+        playErrorSound();
+        score -= 30;
+        document.getElementById('score').innerText = score;
+        showFloatScore("-30");
+        
+        const ansList = document.getElementById('answer-list');
+        const userChips = Array.from(ansList.children);
+        let wrongIdx = -1;
+        
+        for(let i=0; i<currentWords.length; i++) {
+            if (i >= userChips.length || parseInt(userChips[i].dataset.id) !== i) {
+                wrongIdx = i; break;
+            }
+        }
+        if (wrongIdx !== -1) {
+            const allChips = document.querySelectorAll('.word-chip');
+            let targetChip = null;
+            allChips.forEach(c => { if(parseInt(c.dataset.id) === wrongIdx) targetChip = c; });
+            if (targetChip) {
+                if(ansList.children[wrongIdx]) ansList.insertBefore(targetChip, ansList.children[wrongIdx]);
+                else ansList.appendChild(targetChip);
+            }
+        }
+    }
+
+    function instantSolve() {
+        score -= 300;
+        document.getElementById('score').innerText = score;
+        const ansList = document.getElementById('answer-list');
+        const chips = Array.from(document.querySelectorAll('.word-chip'));
+        chips.sort((a,b) => parseInt(a.dataset.id) - parseInt(b.dataset.id));
+        chips.forEach(c => ansList.appendChild(c));
+    }
+
+    function showFloatScore(text) {
+        const el = document.createElement('div');
+        el.className = 'float-score';
+        el.innerText = text;
+        el.style.left = '50%'; el.style.top = '40%';
+        el.style.marginLeft = (Math.random()*60 - 30) + 'px';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    }
+
+    // --- 音效系統 (Marimba) ---
+    const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playPopSound() {
+        if(AudioCtx.state === 'suspended') AudioCtx.resume();
+        const osc = AudioCtx.createOscillator();
+        const gain = AudioCtx.createGain();
+        osc.connect(gain); gain.connect(AudioCtx.destination);
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(600, AudioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, AudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, AudioCtx.currentTime + 0.1);
+        osc.start(); osc.stop(AudioCtx.currentTime + 0.1);
+    }
+    function playSuccessSound() {
+        if(AudioCtx.state === 'suspended') AudioCtx.resume();
+        const now = AudioCtx.currentTime;
+        [523, 659, 783, 1046].forEach((f, i) => {
+            const osc = AudioCtx.createOscillator();
+            const gain = AudioCtx.createGain();
+            osc.connect(gain); gain.connect(AudioCtx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(f, now + i*0.08);
+            gain.gain.setValueAtTime(0.1, now + i*0.08);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.08 + 0.3);
+            osc.start(now + i*0.08); osc.stop(now + i*0.08 + 0.3);
+        });
+    }
+    function playErrorSound() {
+        if(AudioCtx.state === 'suspended') AudioCtx.resume();
+        const osc = AudioCtx.createOscillator();
+        const gain = AudioCtx.createGain();
+        osc.connect(gain); gain.connect(AudioCtx.destination);
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, AudioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, AudioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, AudioCtx.currentTime + 0.2);
+        osc.start(); osc.stop(AudioCtx.currentTime + 0.2);
+    }
+
+    let bgmTimeout;
+    let bgmIndex = 0;
+    const melody = [523, 659, 783, 523, 880, 783, 659, 587];
+    function toggleMusic() {
+        isMusicPlaying = !isMusicPlaying;
+        const btn = document.getElementById('music-toggle');
+        if(isMusicPlaying) {
+            if(AudioCtx.state === 'suspended') AudioCtx.resume();
+            btn.classList.add('music-active');
+            playLoop();
+        } else {
+            btn.classList.remove('music-active');
+            clearTimeout(bgmTimeout);
+        }
+    }
+    function playLoop() {
+        if(!isMusicPlaying) return;
+        const note = melody[bgmIndex % melody.length];
+        const osc = AudioCtx.createOscillator();
+        const gain = AudioCtx.createGain();
+        osc.connect(gain); gain.connect(AudioCtx.destination);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(note, AudioCtx.currentTime);
+        gain.gain.setValueAtTime(0, AudioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.06, AudioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, AudioCtx.currentTime + 0.25);
+        osc.start(); osc.stop(AudioCtx.currentTime + 0.25);
+        bgmIndex++;
+        let interval = 250;
+        if (bgmIndex % 4 === 0) interval = 500;
+        bgmTimeout = setTimeout(playLoop, interval);
+    }
+
+</script>
+</body>
+</html>
